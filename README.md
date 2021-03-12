@@ -32,3 +32,11 @@ After that I plan to write getclock/setclock DOS programs.
 ## Note on licensing
 
 clock.sys driver and clock.asm disassembly are copyright (c) 1985 Intel Corporation. The rest of the code is my and is GPLv3.
+
+
+## TODO
+
+- convert repetitive code blocks into macros;
+- consider optimizing out inefficiencies to shave some bytes from the 1280 bytes that Intel driver occupies in base memory;
+- consider converting to NASM/YASM or JWASM, so driver can be built without DosBox;
+- develop stand-alone getclock/setclock DOS programs to keep the time accurate without the use of driver.
