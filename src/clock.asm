@@ -1,6 +1,8 @@
 ;
 ; clock.asm - a DOS clock driver for Intel Above Board PS/PC multi-function card
 ;
+; Copyright (c) 1985 Intel Corporation
+;
 ; Disassembled using Ghidra
 ;
 ; Build with MASM 5.10:
