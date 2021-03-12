@@ -3,7 +3,6 @@
 [stason.org](https://stason.org/TULARC/pc/io-cards/I-L/INTEL-CORPORATION-Multi-I-O-card-ABOVE-BOARD-PS.html) has information on
 settings, they just switched the names of switches. I'll mirror it here:
 
-**bold** - factory default setting
 
                                                            __
     +-----------------------------------------------------|
@@ -18,6 +17,9 @@ settings, they just switched the names of switches. I'll mirror it here:
     | *** *** *** *** *** ***                             |-+
     +---------------------------+--------------------+----|	
                                 |____________________|    |
+
+
+**bold** - factory default setting
 
 
 | Parallel port   | SW1-1 | SW1-2 |
