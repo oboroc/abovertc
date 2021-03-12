@@ -4,3 +4,4 @@ src/*.sys
 src/*.LST
 src/*.CRF
 src/*.REF
+src/*.err
