@@ -2,6 +2,8 @@
 
 I aim to create typical getclock/setclock DOS programs for RTC in Intel Above Board PS/PC card.
 
+![Intel Above Board PS/PC card photo](Intel Above Board PS-PC.jpg)
+
 Intel Above Board PS/PC is a very cool multi-function ISA card from 1985 for XT class computers:
 - RTC clock;
 - serial port, DB-9 connector;
