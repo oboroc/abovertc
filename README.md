@@ -20,9 +20,9 @@ It was in file intel_above_board_v40a.zip available
 I shared the good news with fellow enthusiasts
 [here](http://www.vcfed.org/forum/showthread.php?76141-Need-help-with-RTC-on-Intel-Above-Board-PS-PC&p=631392#post631392).
 
-Intel's driver works well, but it takes 1280 bytes of base memory, and on XT that is a lot.
+Intel driver works well, but it takes 1280 bytes of base memory, and on XT that is a lot.
 
-So far I successfully dissassembled Intel's driver. See the source here: [clock.asm](src/clock.asm).
+So far I successfully dissassembled Intel driver. See the source here: [clock.asm](src/clock.asm).
 I use DosBox and Microsoft Macro Assembler 5.1 to build it.
 Assembled binary matches the original driver exactly.
 I'll massage disassembled code a bit more to make it more readable.
