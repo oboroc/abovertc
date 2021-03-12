@@ -8,7 +8,7 @@
 ; Build with MASM 5.10:
 ;  masm clock;
 ;  link clock;
-;  bin2exe clock.exe clock.sys
+;  exe2bin clock.exe clock.sys
 ;
 
 code		segment
