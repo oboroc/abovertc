@@ -15,7 +15,7 @@ Intel Above Board PS/PC is a very cool multi-function ISA card from 1985 for XT 
 
 The only problem I had with it is that all the drivers I could find online didn't include support for RTC.
 I finally found a driver distribution that did have RTC driver in it.
-It was available in file intel_above_board_v40a.zip available
+It was in file intel_above_board_v40a.zip available
 [here](https://vetusware.com/download/Intel%20Above%20Board%204/?id=6149).
 I shared the good news with fellow enthusiasts
 [here](http://www.vcfed.org/forum/showthread.php?76141-Need-help-with-RTC-on-Intel-Above-Board-PS-PC&p=631392#post631392).
