@@ -65,8 +65,8 @@ I'll mirror it here:
 
 | DRAM chip type | SW2-7 |
 |:---------------|:------|
-| 256K (41256)   | on    |
 | 64K (4164)     | off   |
+| 256K (41256)   | on    |
 
 
 SW2-8 is factory configured. Don't change.
