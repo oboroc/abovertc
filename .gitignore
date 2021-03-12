@@ -1,0 +1,6 @@
+# exclude MASM 5.1 and temporary files and
+src/masm51/
+src/*.sys
+src/*.LST
+src/*.CRF
+src/*.REF
