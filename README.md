@@ -9,7 +9,7 @@ Intel Above Board PS/PC is a very cool multi-function ISA card from 1985 for XT 
 - serial port, DB-9 connector;
 - parallel port, DB-25 connector;
 - up to 1.5MB memory if populating all memory banks with 41256 DRAM chips;
-- it can backfill the base memory to 640KB from arbitrary 64K boundary;
+- it can backfill the base memory to 640KB from 256K or 512K boundary;
 - all memory that wasn't used to backfill base memory can be used as EMS 4.0;
 - works reliably at 8MHz with 150ns DRAM chips.
 
