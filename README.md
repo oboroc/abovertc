@@ -14,7 +14,7 @@ Intel Above Board PS/PC is a very cool multi-function ISA card from 1985 for XT 
 - works reliably at 8MHz with 150ns DRAM chips.
 
 The only problem I had with it is that all the drivers I could find online didn't include support for RTC.
-I finally found a [driver](3rdparty/clock.sys) distribution that did have RTC driver in it.
+I finally found a driver distribution that did have RTC driver in it.
 It was available in file intel_above_board_v40a.zip available
 [here](https://vetusware.com/download/Intel%20Above%20Board%204/?id=6149).
 I shared the good news with fellow enthusiasts
