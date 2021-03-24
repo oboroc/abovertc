@@ -726,6 +726,21 @@ table_leap:
 
 		db	7 dup (0)
 
+
+write_char	MACRO	arg1
+		push	ax
+		push	dx
+		mov	dl,al	; this is not neccessary if arg1 is passed
+		IFNB	<arg1>	; if macro was passed an argument
+		mov	dl,arg1
+		ENDIF
+		mov	ah,2
+		int	21h	; int 21h, ah = 2 - write character from dl to standard output
+		pop	dx
+		pop	ax
+		ENDM
+
+
 ; this should be at 500h
 init		proc	near	; initialization routine
 		cli
@@ -793,90 +808,40 @@ l573:		push	si
 		div	byte ptr [ten]
 		add	al,byte ptr [device_name]
 
-		push	ax
-		push	dx
-		mov	dl,al
-		mov	ah,2
-		int	21h	; int 21h, ah = 2 - write character from dl to standard output
-		pop	dx
-		pop	ax
+		write_char
 
 		xchg	ah,al
 		add	al,byte ptr [device_name]	; mmm, wtf?
 
-		push	ax
-		push	dx
-		mov	dl,al
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char
 
-		push	ax
-		push	dx
-		mov	dl,al	; useless
-		mov	dl,':'
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char ':'
 
 		xor	ax,ax
 		mov	al,[minute]
 		div	byte ptr [ten]
 		add	al,byte ptr [device_name]
 
-		push	ax
-		push	dx
-		mov	dl,al
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char
 
 		xchg	ah,al
 		add	al,byte ptr [device_name]
 
-		push	ax
-		push	dx
-		mov	dl,al
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char
 
-		push	ax
-		push	dx
-		mov	dl,al	; useless
-		mov	dl,':'
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char ':'
 
 		xor	ax,ax
 		mov	al,[second]
 		div	byte ptr [ten]	; divide by 10 to convert BCD to normal byte?
 		add	al,byte ptr [device_name]
 
-		push	ax
-		push	dx
-		mov	dl,al
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char
 
 		xchg	ah,al
 		add	al,byte ptr [device_name]
 
-		push	ax
-		push	dx
-		mov	dl,al
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char
 
 		call	rtc_get_date
 		les	bx,dword ptr [request]
@@ -893,66 +858,28 @@ l61b:		push	si
 		div	byte ptr [ten]
 		add	al,byte ptr [device_name]
 
-		push	ax
-		push	dx
-		mov	dl,al
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char
 
 		xchg	ah,al
 		add	al,byte ptr [device_name]
 
-		push	ax
-		push	dx
-		mov	dl,al
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char
 
-		push	ax
-		push	dx
-		mov	dl,al	; useless
-		mov	dl,'-'
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char '-'
 
 		xor	ax,ax
 		mov	al,day
 		div	byte ptr [ten]
 		add	al,byte ptr [device_name]
 
-		push	ax
-		push	dx
-		mov	dl,al
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char
 
 		xchg	ah,al
 		add	al,byte ptr [device_name]
 
-		push	ax
-		push	dx
-		mov	dl,al
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char
 
-		push	ax
-		push	dx
-		mov	dl,al	; useless
-		mov	dl,'-'
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char '-'
 
 		xor	ax,ax
 		mov	al,[year]
@@ -970,24 +897,12 @@ l6a1:		add	al,80	; start from 1980?
 l6a3:		div	byte ptr [ten]
 		add	al,byte ptr [device_name]
 
-		push	ax
-		push	dx
-		mov	dl,al
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char
 
 		xchg	ah,al
 		add	al,byte ptr [device_name]
 
-		push	ax
-		push	dx
-		mov	dl,al
-		mov	ah,2
-		int	21h
-		pop	dx
-		pop	ax
+		write_char
 
 		push	si
 		lea	si,[eol]
