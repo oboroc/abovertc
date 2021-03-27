@@ -204,10 +204,10 @@ read		endp
 rtc_detect	proc	near
 		xor	bl,bl
 
-l0df:		mov	dx,RTC_CONTROL
-		in	al,dx
-		and	al,0Eh
-		out	dx,al
+l0df:		mov	dx,RTC_CONTROL	;\
+		in	al,dx		; \ same as call rtc_init
+		and	al,0Eh		; /
+		out	dx,al		;/
 
 		; I/O delay
 		nop
