@@ -223,6 +223,7 @@ l0f2:		in	al,dx
 		test	al,2
 		jz	rtc_found
 		loop	l0f2
+
 		cmp	bl,2
 		jnz	l0df
 		jmp	rtc_not_found
