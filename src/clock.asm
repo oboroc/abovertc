@@ -65,6 +65,8 @@ RTC_MONTH1	equ	2C8h
 RTC_MONTH10	equ	2C9h
 RTC_YEAR1	equ	2CAh
 RTC_YEAR10	equ	2CBh
+RTC_WEEKDAY	equ	2CCh
+RTC_CONTROL	equ	2CDh
 
 
 ; Strategy routine - DOS calls it to initialize the driver and then repeatedly before
@@ -202,7 +204,7 @@ read		endp
 rtc_detect	proc	near
 		xor	bl,bl
 
-l0df:		mov	dx,02CDh
+l0df:		mov	dx,RTC_CONTROL
 		in	al,dx
 		and	al,0Eh
 		out	dx,al
@@ -240,7 +242,7 @@ rtc_detect	endp
 
 ; this should be at 10Fh offset
 rtc_init	proc	near
-		mov	dx,2CDh
+		mov	dx,RTC_CONTROL
 		in	al,dx
 		and	al,0Eh
 		out	dx,al
@@ -755,7 +757,7 @@ init		proc	near	; initialization routine
 		out	dx,al
 		mov	al,4
 		out	dx,al
-		mov	dx,2CDh
+		mov	dx,RTC_CONTROL
 		mov	al,0
 		out	dx,al
 		mov	dx,2CEh
