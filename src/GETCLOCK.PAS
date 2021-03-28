@@ -12,8 +12,20 @@
 
 program GetClock;
 
+uses
+  Dos;
+
 const
-  RTC_BASE_PORT = $2CD;
+  RTC_CONTROL = $2CD;
+
+procedure rtc_init;
+var
+  p: byte;
+begin
+  p := port[RTC_CONTROL];
+  p := p and $0E;
+  port[RTC_CONTROL] := p;
+end;
 
 function rtc_detect: boolean;
 var
@@ -25,20 +37,18 @@ begin
   rtc_found := false;
   for tries := 1 to 2 do
   begin
-    p := port[RTC_BASE_PORT];
-    p := p and $0E;
-    port[RTC_BASE_PORT] := p;
+    rtc_init;
     asm
       nop
       nop
       nop
     end;
-    p := port[RTC_BASE_PORT];
+    p := port[RTC_CONTROL];
     p := p and 1;
-    port[RTC_BASE_PORT] := p;
+    port[RTC_CONTROL] := p;
     for i := 1 to 100 do
     begin
-      p := port[RTC_BASE_PORT];
+      p := port[RTC_CONTROL];
       if p and 2 = 0 then
       begin
         rtc_found := true;
@@ -48,6 +58,14 @@ begin
   end; { tries }
 rtc_ok:
   rtc_detect := rtc_found;
+end;
+
+procedure rtc_get_time;
+begin
+  {
+  SetDate(Year, Month, Day: Word);
+  SetTime(Hour, Minute, Second, Sec100: Word);
+  }
 end;
 
 begin
