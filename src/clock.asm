@@ -280,6 +280,7 @@ sec10:		mul	byte ptr [ten]
 		jbe	min1
 		jmp	bad_time
 min1:		mov	[minute],al
+
 		mov	dx,RTC_MIN10
 		in	al,dx
 		and	al,NIBBLE
