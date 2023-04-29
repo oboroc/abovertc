@@ -18,33 +18,40 @@
 .model small
 .stack
 .data
-banner	db "Detecting Intel Above Board RTC",13,10,"$"
-found	db "Found!",13,10,"$"
-nfound	db "Not found.",13,10,"$"
+banner	DB	"Detecting Intel Above Board RTC",13,10,"$"
+found	DB	"Found!",13,10,"$"
+nfound	DB	"Not found.",13,10,"$"
 
-RTC_CONTROL	equ	2CDh
+RTC_CONTROL	EQU	2CDh
 
-print MACRO msg
-	mov ax,SEG msg
-	mov ds,ax
-	mov dx,OFFSET msg
-	mov ah,09h
+print	MACRO	msg
+	mov	ax,SEG msg
+	mov	ds,ax
+	mov	dx,OFFSET msg
+	mov	ah,09h
+	int	21h
+	ENDM
+
+; quit to dos macro
+; takes optional argument - return error code (0-255)
+quit	MACRO	errcode
+	IFNB	<errcode>	; if macro was passed an argument
+	mov	ah,4ch
+	mov	al,errcode
+	ELSE
+	mov	ax,4c00h
+	ENDIF
 	int 21h
-ENDM
+	ENDM
 
 .code
 _start:
-
 	print	banner
-
 	call	rtc_detect
-
-	; quit to dos
-	mov ax,4c00h
-	int 21h
+	quit
 
 
-rtc_detect PROC NEAR
+rtc_detect proc near
 	xor	bl,bl
 
 loop1:	mov	dx,RTC_CONTROL
@@ -80,6 +87,6 @@ rtc_found:
 	print	found
 	ret
 
-rtc_detect ENDP
+rtc_detect endp
 
 end _start
