@@ -14,6 +14,9 @@
 ;   masm.exe /V /Z /ZI abovertc,,,;
 ;   link.exe abovertc;
 ;
+; TODO: undecided on coding style, need to find something good to
+; follow/emulate
+;
 
 .model small
 .stack
@@ -77,9 +80,9 @@ loop2:	in	al,dx
 
 	cmp	bl,2
 	jnz	loop1
-	jmp	rtc_not_found
+;	jmp	rtc_not_found
 
-rtc_not_found:
+;rtc_not_found:
 	print	nfound
 	ret
 
