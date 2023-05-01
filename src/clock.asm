@@ -228,7 +228,7 @@ l0f2:		in	al,dx
 
 		cmp	bl,2
 		jnz	l0df
-		jmp	rtc_not_found
+		jmp	rtc_not_found	; unnecessary, can be commented out
 
 rtc_not_found:	mov	byte ptr [rtc_status],RTC_BAD
 		nop
