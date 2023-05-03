@@ -5,3 +5,5 @@ src/*.LST
 src/*.CRF
 src/*.REF
 src/*.err
+src/*.obj
+src/*.exe
