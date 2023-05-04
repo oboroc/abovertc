@@ -22,7 +22,7 @@ I finally found a driver distribution that did have RTC driver in it.
 It was in file intel_above_board_v40a.zip available
 [here](https://vetusware.com/download/Intel%20Above%20Board%204/?id=6149).
 I shared the good news with fellow enthusiasts
-[here](http://www.vcfed.org/forum/showthread.php?76141-Need-help-with-RTC-on-Intel-Above-Board-PS-PC&p=631392#post631392).
+[here](https://forum.vcfed.org/index.php?threads/need-help-with-rtc-on-intel-above-board-ps-pc.77403/).
 
 Intel driver works well, but it takes 1280 bytes of base memory, and on XT that is a lot.
 
