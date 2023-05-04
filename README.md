@@ -33,7 +33,7 @@ Assembled binary matches the original driver exactly.
 
 ## Note on licensing
 
-clock.sys driver and clock.asm disassembly are copyright (c) 1985 Intel Corporation.
+clock.sys driver and derivative works clock.asm and abovertc.asm are copyright (c) 1985 Intel Corporation.
 The rest of the code is my and is GPLv3.
 
 
