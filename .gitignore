@@ -7,3 +7,4 @@ src/*.REF
 src/*.err
 src/*.obj
 src/*.exe
+src/*.sbr
