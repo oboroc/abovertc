@@ -1,4 +1,4 @@
-﻿# abovertc - Intel Above Board real-time clock support
+﻿# Intel Above Board real-time clock support
 
 I aim to create typical getclock/setclock DOS programs for RTC in Intel Above Board PS/PC card.
 
