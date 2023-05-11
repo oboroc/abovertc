@@ -21,7 +21,11 @@
 .model small
 .stack
 .data
+IFDEF DEBUG
+banner	DB	"DEBUG Detecting Intel Above Board RTC",13,10,"$"
+ELSE
 banner	DB	"Detecting Intel Above Board RTC",13,10,"$"
+ENDIF
 found	DB	"Found!",13,10,"$"
 nfound	DB	"Not found.",13,10,"$"
 
@@ -50,11 +54,7 @@ quit	MACRO	errcode
 .code
 _start:
 	print	banner
-	call	rtc_detect
-	quit
 
-
-rtc_detect proc near
 	xor	bl,bl
 
 loop1:	mov	dx,RTC_CONTROL
@@ -80,16 +80,15 @@ loop2:	in	al,dx
 
 	cmp	bl,2
 	jnz	loop1
-;	jmp	rtc_not_found
 
-;rtc_not_found:
 	print	nfound
-	ret
+	quit	100
 
 rtc_found:
 	print	found
-	ret
 
-rtc_detect endp
+; >>> put something here <<<
 
-end _start
+	quit
+
+end	_start
