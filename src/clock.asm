@@ -11,6 +11,42 @@
 ;  exe2bin clock.exe clock.sys
 ;
 
+
+write_char	MACRO	arg1
+		push	ax
+		push	dx
+;----------+-------------+-------------
+;          | TWEAK       | TWEAK
+;          | disabled    | enabled
+;----------+-------------+-------------
+; no arg1  | mov dl,al   | mov dl,al
+;          |             |
+;----------+-------------+-------------
+; arg1     | mov dl,al   |
+; provided | mov dl,arg1 | mov dl,arg1
+;----------+-------------+-------------
+IFB <arg1>
+		mov dl,al
+ELSE
+	IFNDEF TWEAK
+		mov dl,al
+	ENDIF
+		mov dl,arg1
+ENDIF
+		mov	ah,2
+		int	21h	; int 21h, ah = 2 - write character from dl to standard output
+		pop	dx
+		pop	ax
+		ENDM
+
+
+nopc		MACRO
+IFNDEF TWEAK
+		nop
+ENDIF
+		ENDM
+
+
 code		segment
 
 		assume cs:code,ds:code,es:code,ss:code
@@ -204,10 +240,15 @@ read		endp
 rtc_detect	proc	near
 		xor	bl,bl
 
-l0df:		mov	dx,RTC_CONTROL	;\
+l0df:
+IFDEF TWEAK
+		call	rtc_init
+ELSE
+		mov	dx,RTC_CONTROL	;\
 		in	al,dx		; \ same as call rtc_init
 		and	al,0Eh		; /
 		out	dx,al		;/
+ENDIF
 
 		; I/O delay
 		nop
@@ -228,14 +269,20 @@ l0f2:		in	al,dx
 
 		cmp	bl,2
 		jnz	l0df
+
+IFNDEF TWEAK
 		jmp	rtc_not_found	; unnecessary, can be commented out
 
-rtc_not_found:	mov	byte ptr [rtc_status],RTC_BAD
-		nop
+rtc_not_found:
+ENDIF
+
+		mov	byte ptr [rtc_status],RTC_BAD
+		nopc
 		ret
 
 rtc_found:	mov	byte ptr [rtc_status],RTC_OK
-		nop
+		nopc
+
 		ret
 rtc_detect	endp
 
@@ -308,7 +355,14 @@ hour1:		mov	[hour],al
 hour10:		mul	byte ptr [ten]
 		add	byte ptr [hour],al
 		mov	ah,byte ptr [hour]
+IFDEF TWEAK
+		; bugfix, hour should be between 0 and 23
+		; credit to Krille @ vcfed forum
+		cmp	ah,23
+ELSE
+		; original Intel driver allows 24 as a valid hour
 		cmp	ah,24
+ENDIF
 		ja	bad_time
 ; now al is hour from 0 to 23
 
@@ -432,7 +486,7 @@ pm_to_days	proc	near
 
 		mov	bx,offset table_leap
 		jmp short	lookup
-		nop
+		nopc
 
 not_leap_year:	mov	bx,offset table_non_leap
 lookup:		xor	ax,ax
@@ -451,7 +505,7 @@ month_to_days	proc	near
 		mov	al,[month]
 		mov	bx,offset table_days_in_month	; it should be 4B4h
 ; al = days in current month, no leap year correction for february
-		xlat	bx
+		xlat
 
 ; if year & 3 <> 0, consider it leap - this is probably limited to 1980s
 ; TODO: check relevant leap years: 1984, 1988, 1992
@@ -517,11 +571,11 @@ l2ef:		mov	[days_total],ax
 		cmp	word ptr [days_total],0
 		jnz	l30e
 		mov	byte ptr [year],0
-		nop
+		nopc
 		mov	byte ptr [month],1
-		nop
+		nopc
 		mov	byte ptr [day],1
-		nop
+		nopc
 		jmp	l311
 
 l30e:		call	calc_day
@@ -627,7 +681,7 @@ calc_month	proc	near
 		jnz	not_leap_year3
 		mov	bx,offset table_leap
 		jmp short leap_year3
-		nop
+		nopc
 
 not_leap_year3:	mov	bx,offset table_non_leap
 
@@ -671,7 +725,7 @@ days_in_month	dw	0
 ten		db	10
 days_per_year	dw	365
 
-; this should be at 430h offset, but it's at 431h for some reason***
+; this should be at 430h offset
 store_ss	dw	0
 store_sp	dw	0
 
@@ -729,20 +783,6 @@ table_leap:
 		dw	366	; 13 - total days in leap year, probably this is never unused
 
 		db	7 dup (0)
-
-
-write_char	MACRO	arg1
-		push	ax
-		push	dx
-		mov	dl,al	; this is not neccessary if arg1 is passed
-		IFNB	<arg1>	; if macro was passed an argument
-		mov	dl,arg1
-		ENDIF
-		mov	ah,2
-		int	21h	; int 21h, ah = 2 - write character from dl to standard output
-		pop	dx
-		pop	ax
-		ENDM
 
 
 ; this should be at 500h
@@ -927,12 +967,14 @@ l6d1:		push	si
 		int	21h	; int 21h, ah = 0Ch, al = 07h - flush buffer and read from stdin
 		call	rtc_init
 		les	bx,dword ptr [request]
-		; are we ditchign init part here? to save some memory?
+		; are we ditching init part here? to save some memory?
 		mov	es:[bx + 0Eh],offset init		; +0Eh - buffer offset address
 		mov	ax,cs
 		mov	word ptr es:[bx + 10h],ax	; +10h - buffer segment address
 		mov	word ptr es:[bx + 03h],810Ch	; +03h - status
+IFNDEF TWEAK
 		mov	ax,cs	; unnecessary
+ENDIF
 		mov	es,ax
 		xor	al,al
 		lea	di,[driver_name]
@@ -956,13 +998,17 @@ l719:		push	si
 
 l731:		les	bx,dword ptr [request]
 		mov	word ptr es:[bx + 03h],100h	; +03h - status
+IFNDEF TWEAK
 		les	bx,dword ptr [request]		; unnecessary
+ENDIF
 		mov	es:[bx + 0Eh],offset init	; +0Eh - buffer offset address
 		mov	ax,cs
 		mov	word ptr es:[bx + 10h],ax	; +10h - buffer segment address
+IFNDEF TWEAK
 		mov	ax,cs	; unnecessary
-		mov	es,ax	; unnecessary
-		mov	ds,ax	; unnecessary
+ENDIF
+		mov	es,ax	; unnecessary?
+		mov	ds,ax	; unnecessary?
 
 		; set device name to 0CLOCK, 1CLOCK etc.
 		lea	si,[device_name + 1]
