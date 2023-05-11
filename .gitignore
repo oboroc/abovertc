@@ -4,6 +4,7 @@ src/*.sys
 src/*.LST
 src/*.CRF
 src/*.REF
+src/*.MAP
 src/*.err
 src/*.obj
 src/*.exe
