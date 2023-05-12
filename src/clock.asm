@@ -5,9 +5,9 @@
 ;
 ; Disassembled using Ghidra
 ;
-; Build with MASM 5.10:
-;  masm clock;
-;  link clock;
+; Build with MASM 4.0 or 5.10:
+;  masm clock,,,;
+;  link clock,,,;
 ;  exe2bin clock.exe clock.sys
 ;
 
