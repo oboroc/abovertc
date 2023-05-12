@@ -21,11 +21,7 @@
 .model small
 .stack
 .data
-IFDEF DEBUG
-banner	DB	"DEBUG Detecting Intel Above Board RTC",13,10,"$"
-ELSE
 banner	DB	"Detecting Intel Above Board RTC",13,10,"$"
-ENDIF
 found	DB	"Found!",13,10,"$"
 nfound	DB	"Not found.",13,10,"$"
 
