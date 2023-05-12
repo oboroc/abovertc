@@ -29,7 +29,7 @@ Intel driver works well, but it takes 1280 bytes of base memory, and on XT that 
 I successfully dissassembled Intel driver. See the source here: [clock.asm](src/clock.asm).
 I use DosBox and Microsoft Macro Assembler 5.1 to build it.
 Assembled binary matches the original driver exactly.
-You can use /DTWEAK=1 parameter when compiling clock.asm to reduce size by 30 bytes: from 1280 to 1250.
+You can use /DTWEAK parameter when compiling clock.asm to reduce size by 30 bytes: from 1280 to 1250.
 
 
 ## Note on licensing
