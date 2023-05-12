@@ -26,12 +26,12 @@ write_char	MACRO	arg1
 ; provided | mov dl,arg1 | mov dl,arg1
 ;----------+-------------+-------------
 IFB <arg1>
-		mov dl,al
+		mov	dl,al
 ELSE
 	IFNDEF TWEAK
-		mov dl,al
+		mov	dl,al
 	ENDIF
-		mov dl,arg1
+		mov	dl,arg1
 ENDIF
 		mov	ah,2
 		int	21h	; int 21h, ah = 2 - write character from dl to standard output
