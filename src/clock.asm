@@ -7,8 +7,8 @@
 ; Disassembled using Ghidra
 ;
 ; Build with MASM 4.0 or 5.10:
-;  masm clock,,,;
-;  link clock,,,;
+;  masm clock;
+;  link clock;
 ;  exe2bin clock.exe clock.sys
 ;
 
@@ -599,10 +599,20 @@ pm_to_days	proc	near
 		nopc
 
 not_leap_year:	mov	bx,offset table_non_leap
-lookup:		xor	ax,ax
+lookup:
+IFDEF TWEAK2
+		mov	al,month
+		cbw
+ELSE
+		xor	ax,ax
 		mov	al,[month]
+ENDIF
 		shl	ax,1	; ax = ax * 2
+IFDEF TWEAK2
+		xchg	ax,si
+ELSE
 		mov	si,ax	; an offset to word?
+ENDIF
 		mov	ax,word ptr [bx + si]
 		ret
 pm_to_days	endp
@@ -611,8 +621,13 @@ pm_to_days	endp
 ; this should be at 28Dh offset
 month_to_days	proc	near
 		push	ax
+IFDEF TWEAK2
+		mov	al,month
+		cbw
+ELSE
 		xor	ax,ax
 		mov	al,[month]
+ENDIF
 		mov	bx,offset table_days_in_month	; it should be 4B4h
 ; al = days in current month, no leap year correction for february
 		xlat
@@ -633,7 +648,11 @@ month_to_days	proc	near
 		jnz	not_leap_year2
 
 ; add one day if it is february and it's a leap year: 28 + 1 = 29
+IFDEF TWEAK2
+		inc	ax
+ELSE
 		inc	al
+ENDIF
 
 not_leap_year2:	mov	[days_in_month],ax
 		pop	ax
@@ -643,8 +662,13 @@ month_to_days	endp
 
 ; this should be at 2ADh offset
 year_to_days	proc	near
+IFDEF TWEAK2
+		mov	al,[year]
+		cbw
+ELSE
 		xor	ax,ax
 		mov	al,[year]
+ENDIF
 		mul	word ptr [days_per_year]
 		xor	cx,cx
 IFDEF TWEAK2
@@ -693,8 +717,13 @@ l2ef:		mov	[days_total],ax
 l30e:		call	calc_day
 
 l311:		call	rtc_detect
+IFDEF TWEAK2
+		mov	al,[day]
+		cbw
+ELSE
 		xor	ax,ax
 		mov	al,[day]
+ENDIF
 		div	byte ptr [ten]
 		mov	dx,RTC_DAY10
 		out	dx,al
@@ -709,8 +738,13 @@ l311:		call	rtc_detect
 		mov	dx,RTC_MONTH1
 		xchg	ah,al
 		out	dx,al
+IFDEF TWEAK2
+		mov	al,[year]
+		cbw
+ELSE
 		xor	ax,ax
 		mov	al,[year]
+ENDIF
 		div	byte ptr [ten]
 		mov	dx,RTC_YEAR10
 		out	dx,al
@@ -1105,15 +1139,16 @@ ENDIF
 
 IFDEF TWEAK2
 l6d1:		write_str msg101	; write msg101 + anykey
+		mov	ax,0C07h
 ELSE
 l6d1:		write_str msg101
 		write_str anykey
-ENDIF
 		mov	al,07h
 		mov	ah,0Ch
+ENDIF
 		int	21h	; int 21h, ah = 0Ch, al = 07h - flush buffer and read from stdin
 		call	rtc_init
-		les	bx,dword ptr [request]
+		les	bx,request
 		; are we ditching init part here? to save some memory?
 		mov	es:[bx + 0Eh],offset init		; +0Eh - buffer offset address
 		mov	ax,cs
@@ -1133,7 +1168,11 @@ ENDIF
 		stosb	;es:di
 		; change character device attributes to 1010000000000000b:
 		mov	word ptr [drv_attr],CHAR_DRV + OUTPUT_UNTIL
+IFDEF TWEAK2
+		ret
+ELSE
 		jmp	l75e
+ENDIF
 
 IFDEF TWEAK2
 l719:		push	si		; TODO: is SI necessary to preserve at all?
