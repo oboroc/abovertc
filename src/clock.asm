@@ -1,5 +1,5 @@
 ;
-; clock.asm - a DOS clock driver for Intel Above Board PS/PC multi-function card
+; clock.asm - a DOS clock driver for Intel Above Board/PS multi-function card
 ;
 ; Copyright (c) 1985 Intel Corporation
 ;

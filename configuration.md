@@ -1,7 +1,7 @@
-# Intel Above Board PS/PC configuration
+# Intel Above Board/PS configuration
 
 [stason.org](https://stason.org/TULARC/pc/io-cards/I-L/INTEL-CORPORATION-Multi-I-O-card-ABOVE-BOARD-PS.html)
-has information on Intel Above Board PS/PC switch settings.
+has information on Intel Above Board/PS switch settings.
 They switched the names of switch blocks.
 I'll mirror it here:
 
