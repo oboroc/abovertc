@@ -138,18 +138,18 @@ strategy	endp
 ; It then returns control to DOS.
 interrupt	proc	far
 		; clear interrupt flag (no interrupts until sti)
-		cli			
+		cli
 		mov	word ptr cs:[store_ss],ss
 		mov	word ptr cs:[store_sp],sp
 		mov	ax,cs
 		; set ss to driver code segment
-		mov	ss,ax		
+		mov	ss,ax
 		lea	sp,[stack_bottom]
 		sti
 		; push flags
-		pushf			
+		pushf
 		; this is wonky, as we just messed with ax above to copy cs to ss
-		push	ax		
+		push	ax
 		push	bx
 		push	cx
 		push	dx
@@ -510,10 +510,8 @@ month_to_days	proc	near
 ; if year & 3 <> 0, consider it leap - this is probably limited to 1980s
 ; TODO: check relevant leap years: 1984, 1988, 1992
 ;
-; Proper method for checking if year is leap:
-;   if the year is evenly divisible by 4 and
-;   if the year is evenly divisible by 100 and
-;   if the year is evenly divisible by 400 then
+; Leap year occurs in each year that is an integer multiple of 4,
+; except for years evenly divisible by 100, but not by 400
 ;   the year is a leap year and has 366 days
 ;   otherwise it is not a leap year and has 365 days
 		test	byte ptr [year],3
