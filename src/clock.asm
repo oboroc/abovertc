@@ -1,3 +1,4 @@
+	PAGE	 	59,132
 ;
 ; clock.asm - a DOS clock driver for Intel Above Board/PS multi-function card
 ;
@@ -11,6 +12,18 @@
 ;  exe2bin clock.exe clock.sys
 ;
 
+IFDEF TWEAK2
+; moving most of this into a proc saves a lot of bytes
+write_char	MACRO	arg1
+		push	ax
+IFNB <arg1>
+		mov	al,arg1
+ENDIF
+		call	print_char	; print char in al
+		pop	ax
+		ENDM
+
+ELSE
 
 write_char	MACRO	arg1
 		push	ax
@@ -39,6 +52,7 @@ ENDIF
 		pop	ax
 		ENDM
 
+ENDIF		; ENDIFDEF TWEAK2
 
 nopc		MACRO
 IFNDEF TWEAK
@@ -158,18 +172,32 @@ interrupt	proc	far
 		push	bp
 		push	ds
 		push	es
+IFDEF TWEAK2
+		push	cs		; (-2 bytes to use stack)
+		; set ds to driver code segment
+		pop	ds
+ELSE
 		mov	ax,cs
 		; set ds to driver code segment
 		mov	ds,ax
+ENDIF
 		les	bx,dword ptr [request]
 		; read command code from DOS request header
 		mov	al,byte ptr es:[bx + 02h]
 		cmp	al,15
 		jbe	no_bump_al	; jump if al is lower or equal to 15 (0Fh)
 		mov	al,10h		; if al > 15 (0Fh), set it to 16 (10h)
+IFDEF TWEAK2
+no_bump_al:	cbw			; ah = 0 (-1 byte)
+ELSE
 no_bump_al:	xor	ah,ah		; ah = 0
+ENDIF
 		shl	ax,1		; convert routine number to offset: ax = ax * 2
+IFDEF TWEAK2
+		xchg	ax,si		; si = ax (-1 byte)
+ELSE
 		mov	si,ax
+ENDIF
 		call	word ptr [si + jump_table]
 		pop	es
 		pop	ds
@@ -237,8 +265,15 @@ read		endp
 
 
 ; this should be at 0DDh offset
+; clobbers bx
 rtc_detect	proc	near
+
+IFDEF TWEAK2
+		mov	bx,1		; save bytes by using a countdown loop
+ELSE
 		xor	bl,bl
+ENDIF
+
 
 l0df:
 IFDEF TWEAK
@@ -256,18 +291,24 @@ ENDIF
 		nop
 
 		in	al,dx
-		or	al,1
+		or	al,1		; set HOLD flag
 		out	dx,al
 
+IFNDEF TWEAK2
 		inc	bl
+ENDIF
 		mov	cx,100
 
 l0f2:		in	al,dx
-		test	al,2
+		test	al,2		; BUSY flag?
 		jz	rtc_found
 		loop	l0f2
 
+IFDEF TWEAK2
+		dec	bx
+ELSE
 		cmp	bl,2
+ENDIF
 		jnz	l0df
 
 IFNDEF TWEAK
@@ -300,58 +341,101 @@ rtc_init	endp
 ; this should be at 117h offset
 rtc_get_time	proc	near
 		call	rtc_detect
-		mov	dx,RTC_SEC1
+		mov	dx,RTC_SEC1		; 2C0h
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,9
+IFDEF TWEAK2
+		ja	bad_time		; bad time if CF=0 and ZF=0
+ELSE
 		jbe	sec1
 		jmp	bad_time
+ENDIF
+
 ; set lower digit of second, for example for 47 seconds it will be 7
 sec1:		mov	[second],al
 
-		mov	dx,RTC_SEC10
+IFDEF TWEAK2
+; these port numbers are sequential, so -2 bytes to just inc instead
+		inc	dx			; 2C1h RTC_SEC10
+ELSE
+		mov	dx,RTC_SEC10		; 2C1h
+ENDIF
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,5
+IFDEF TWEAK2
+		ja	bad_time
+ELSE
 		jbe	sec10
 		jmp	bad_time
+ENDIF
 ; set higher digit of second, for example for 47 seconds, al is 4
 sec10:		mul	byte ptr [ten]
 		add	byte ptr [second],al
 ; now al is seconds from 0 to 59
-
-		mov	dx,RTC_MIN1
+IFDEF TWEAK2
+		inc	dx			; 2C2h RTC_MIN1
+ELSE
+		mov	dx,RTC_MIN1		; 2C2h
+ENDIF
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,9
+IFDEF TWEAK2
+		ja	bad_time
+ELSE
 		jbe	min1
 		jmp	bad_time
+ENDIF
 min1:		mov	[minute],al
-
-		mov	dx,RTC_MIN10
+IFDEF TWEAK2
+		inc	dx			; 2C3h RTC_MIN10
+ELSE
+		mov	dx,RTC_MIN10		; 2C3h
+ENDIF
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,5
+IFDEF TWEAK2
+		ja	bad_time
+ELSE
 		jbe	min10
 		jmp	bad_time
+ENDIF
 min10:		mul	byte ptr [ten]
 		add	byte ptr [minute],al
 ; now al is minutes from 0 to 59
-
-		mov	dx,RTC_HOUR1
+IFDEF TWEAK2
+		inc	dx			; 2C4h RTC_HOUR1
+ELSE
+		mov	dx,RTC_HOUR1		; 2C4h
+ENDIF
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,9
+IFDEF TWEAK2
+		ja	bad_time
+ELSE
 		jbe	hour1
 		jmp	bad_time
+ENDIF
 hour1:		mov	[hour],al
 
-		mov	dx,RTC_HOUR10
+IFDEF TWEAK2
+		inc	dx			; 2C5h RTC_HOUR10
+ELSE
+		mov	dx,RTC_HOUR10		; 2C5h
+ENDIF
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,2
+IFDEF TWEAK2
+		ja	bad_time
+ELSE
 		jbe	hour10
 		jmp	bad_time
+ENDIF
 hour10:		mul	byte ptr [ten]
 		add	byte ptr [hour],al
 		mov	ah,byte ptr [hour]
@@ -375,8 +459,12 @@ bad_time:	call	rtc_init
 		les	bx,dword ptr [request]
 		mov	word ptr es:[bx + 03h],810Ch	; request header +03h - status
 		xor	ax,ax
+IFDEF TWEAK2
+		mov	word ptr [second],ax		; -1 byte
+ELSE
 		mov	[second],al
 		mov	[minute],al
+ENDIF
 		mov	[hour],al
 		ret
 rtc_get_time	endp
@@ -1021,11 +1109,18 @@ init		endp
 print_str	proc	near
 		push	ax
 		push	dx
-		push	si
+IFNDEF TWEAK2
+		push	si	; unnecessary with TWEAK2
+ENDIF
 		push	ds
 		push	cs
 		pop	ds	; ds = cs
 
+IFDEF TWEAK2
+l765:		mov	dx,si	; this function appears to do exactly
+		mov	ah,9	;  what INT 21, AH=9 does...
+		int	21h
+ELSE
 l765:		lodsb
 		cmp	al,'$'
 		jz	l772
@@ -1033,20 +1128,43 @@ l765:		lodsb
 		mov	ah,2
 		int	21h
 		jmp	l765
+ENDIF
 
 l772:		pop	ds
+IFNDEF TWEAK2
 		pop	si
+ENDIF
 		pop	dx
 		pop	ax
 		ret
 print_str	endp
 
+IFDEF TWEAK2
+;
+; print char in al
+;
+print_char	proc	near
+		push	dx
+		xchg	ax,dx		; dl = al
+		mov	ah,2		; int 21h, ah = 2 - write character
+		int	21h		;  in dl to standard output
+		pop	dx
+		ret
+print_char	endp
+ENDIF
 
 device_name	db	"0CLOCK$"
 		dw	0
 
 banner		db	13,10
 		db	10,10,"Clock Device Driver       Ver 1.2"
+IFDEF TWEAK2
+		db	"b"
+ELSE
+	IFDEF TWEAK
+		db	"a"
+	ENDIF
+ENDIF
 		db	13,10,"Copyright 1985  Intel Corporation","$"
 
 msg100		db	13,10,10,10,"Clock Msg 100"
