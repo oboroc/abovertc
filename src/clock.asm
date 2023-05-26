@@ -54,6 +54,24 @@ ENDIF
 
 ENDIF		; ENDIFDEF TWEAK2
 
+;
+; Write string to console
+;
+write_str	MACRO	pstr, no_save_si
+			IFB <no_save_si>
+		push	si
+			ENDIF
+IFDEF TWEAK2
+		mov	si,offset pstr
+ELSE
+		lea	si,pstr
+ENDIF
+		call	print_str
+			IFB <no_save_si>
+		pop	si
+			ENDIF
+		ENDM
+
 nopc		MACRO
 IFNDEF TWEAK
 		nop
@@ -128,7 +146,7 @@ strategy	proc	far
 		mov	cs:request,bx		; store offset and
 		mov	cs:request + 2,es	; segment of the pointer to request header
          	ret
-request	dw	0,0				; pointer to request header provided by DOS
+request		dd	0			; pointer to request header provided by DOS
 ; The request data structure passed by DOS to strategy routine is at least 13 bytes
 ; and tells the driver what it should do. Some operations can use additional data past
 ; 13 bytes. Here is the data structure format:
@@ -158,7 +176,11 @@ interrupt	proc	far
 		mov	ax,cs
 		; set ss to driver code segment
 		mov	ss,ax
+IFDEF TWEAK2
+		mov	sp,offset stack_bottom
+ELSE
 		lea	sp,[stack_bottom]
+ENDIF
 		sti
 		; push flags
 		pushf
@@ -625,8 +647,12 @@ year_to_days	proc	near
 		mov	al,[year]
 		mul	word ptr [days_per_year]
 		xor	cx,cx
+IFDEF TWEAK2
+		add	cl,[year]
+ELSE
 		mov	cl,[year]
 		cmp	byte ptr [year],0
+ENDIF
 		jz	year0
 		dec	cl
 		shr	cx,1
@@ -890,10 +916,7 @@ init		proc	near	; initialization routine
 		mov	dx,2CEh
 		mov	al,3
 		out	dx,al
-		push	si
-		lea	si,[banner]
-		call	print_str
-		pop	si
+		write_str banner
 		call	rtc_detect
 		call	rtc_init
 		cmp	byte ptr [rtc_status],RTC_OK
@@ -925,23 +948,33 @@ l54d:		loop	l54d	; delay loop? skip something?
 
 l561:		call	rtc_get_time
 		les	bx,dword ptr [request]
+IFDEF TWEAK2
+; use indexed addressing instead of direct (saves 2+ bytes per use)
+		mov	di,offset char_buf
+_char_buf	equ	byte ptr[di]
+ENDIF
 		cmp	word ptr es:[bx + 03h],100h	; request header +03h - status
 		jz	l573
 		jmp	l719
 
-l573:		push	si
-		lea	si,[cur_time]
-		call	print_str
-		pop	si
+l573:		write_str cur_time
 		xor	ax,ax
 		mov	al,[hour]
 		div	byte ptr [ten]
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
 		xchg	ah,al
-		add	al,byte ptr [device_name]	; mmm, wtf?
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]	; mmm, wtf?
+ENDIF
 
 		write_char
 
@@ -950,12 +983,20 @@ l573:		push	si
 		xor	ax,ax
 		mov	al,[minute]
 		div	byte ptr [ten]
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
 		xchg	ah,al
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
@@ -964,12 +1005,20 @@ l573:		push	si
 		xor	ax,ax
 		mov	al,[second]
 		div	byte ptr [ten]	; divide by 10 to convert BCD to normal byte?
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
 		xchg	ah,al
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
@@ -979,19 +1028,24 @@ l573:		push	si
 		jz	l61b
 		jmp	l719
 
-l61b:		push	si
-		lea	si,[cur_date]
-		call	print_str
-		pop	si
+l61b:		write_str cur_date
 		xor	ax,ax
 		mov	al,month
 		div	byte ptr [ten]
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
 		xchg	ah,al
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
@@ -1000,12 +1054,20 @@ l61b:		push	si
 		xor	ax,ax
 		mov	al,day
 		div	byte ptr [ten]
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
 		xchg	ah,al
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
@@ -1015,39 +1077,38 @@ l61b:		push	si
 		mov	al,[year]
 		cmp	al,20	; could it be? y2k
 		jc	l6a1
-		push	si
-		lea	si,[twenty]
-		call	print_str
-		pop	si
+
+		write_str twenty
 		sub	al,20
 		jmp	l6a3
 
 l6a1:		add	al,80	; start from 1980?
 
 l6a3:		div	byte ptr [ten]
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
 		xchg	ah,al
-		add	al,byte ptr [device_name]
-
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 		write_char
-
-		push	si
-		lea	si,[eol]
-		call	print_str
-		pop	si
+		write_str eol
 		jmp	l731
 
-l6d1:		push	si
-		lea	si,[msg101]
-		call	print_str
-		pop	si
-		push	si
-		lea	si,[anykey]
-		call	print_str
-		pop	si
+IFDEF TWEAK2
+l6d1:		write_str msg101	; write msg101 + anykey
+ELSE
+l6d1:		write_str msg101
+		write_str anykey
+ENDIF
 		mov	al,07h
 		mov	ah,0Ch
 		int	21h	; int 21h, ah = 0Ch, al = 07h - flush buffer and read from stdin
@@ -1063,23 +1124,32 @@ IFNDEF TWEAK
 ENDIF
 		mov	es,ax
 		xor	al,al
+IFDEF TWEAK2
+		mov	di,offset driver_name
+ELSE
 		lea	di,[driver_name]
+ENDIF
 		mov	cx,8
 		stosb	;es:di
 		; change character device attributes to 1010000000000000b:
 		mov	word ptr [drv_attr],CHAR_DRV + OUTPUT_UNTIL
 		jmp	l75e
 
-l719:		push	si
-		lea	si,[msg100]
-		call	print_str
+IFDEF TWEAK2
+l719:		push	si		; TODO: is SI necessary to preserve at all?
+		write_str msg100, 1
+		write_str anykey, 1
 		pop	si
-		push	si
-		lea	si,[anykey]
-		call	print_str
-		pop	si
+ELSE
+l719:		write_str msg100
+		write_str anykey
+ENDIF
+IFDEF TWEAK2
+		mov	ax,0C07h
+ELSE
 		mov	al,07h
 		mov	ah,0Ch
+ENDIF
 		int	21h	; int 21h, ah = 0Ch, al = 07h - flush buffer and read from stdin
 
 l731:		les	bx,dword ptr [request]
@@ -1097,8 +1167,13 @@ ENDIF
 		mov	ds,ax	; unnecessary?
 
 		; set device name to 0CLOCK, 1CLOCK etc.
-		lea	si,[device_name + 1]
+IFDEF TWEAK2
+		mov	si,offset device_name
+		mov	di,offset driver_name
+ELSE
+		lea	si,[device_name]
 		lea	di,[driver_name]
+ENDIF
 		mov	cx,8
 		rep movsb
 
@@ -1153,7 +1228,8 @@ print_char	proc	near
 print_char	endp
 ENDIF
 
-device_name	db	"0CLOCK$"
+char_buf	db	"0"		; temp buffer for ASCII char output
+device_name	db	"CLOCK$"	; this is really device_name
 		dw	0
 
 banner		db	13,10
@@ -1176,7 +1252,10 @@ msg100		db	13,10,10,10,"Clock Msg 100"
 msg101		db	13,10,10,10,"Clock Msg 101"
 		db	13,10,"   The clock hardware isn't working. There are many possible causes."
 		db	13,10,10,"   The clock software has not been installed."
-		db	13,10,"   See Appendix C in the Intel manual.",13,10,"$"
+		db	13,10,"   See Appendix C in the Intel manual.",13,10
+IFNDEF TWEAK2
+		db	"$"
+ENDIF
 
 anykey		db	13,10,10,"   Press any key to continue",13,10,"$"
 
