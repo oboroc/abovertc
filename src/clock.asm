@@ -143,8 +143,8 @@ RTC_CONTROL	equ	2CDh
 ; for driver to perform. The address is stores and control is returned to DOS immediately.
 ; DOS then calls the interrupt routine of the driver to execute the operation.
 strategy	proc	far
-		mov	cs:request,bx		; store offset and
-		mov	cs:request + 2,es	; segment of the pointer to request header
+		mov	word ptr cs:[request],bx		; store offset and
+		mov	word ptr cs:[request + 2],es	; segment of the pointer to request header
          	ret
 request		dd	0			; pointer to request header provided by DOS
 ; The request data structure passed by DOS to strategy routine is at least 13 bytes
@@ -263,7 +263,7 @@ jump_table	dw	init
 read		proc	near
 		les	bx,dword ptr [request]
 		call	rtc_get_time
-		les	bx,es:[bx + 0Eh]		; request header +0Eh - buffer offset address
+		les	bx,dword ptr es:[bx + 0Eh]		; request header +0Eh - buffer offset address
 		mov	al,[second]
 		mov	byte ptr es:[bx + 05h],al	; request header +05h - reserved?
 		mov	al,[minute]
@@ -278,7 +278,7 @@ read		proc	near
 		jnz	l0cc
 		call	set_days_total
 l0cc:		les	bx,dword ptr [request]
-		les	bx,es:[bx + 0Eh]		; request header +0Eh - buffer offset address
+		les	bx,dword ptr es:[bx + 0Eh]		; request header +0Eh - buffer offset address
 		mov	dx,word ptr [days_total]
 		dec	dx
 		mov	word ptr es:[bx],dx
@@ -500,7 +500,7 @@ rtc_get_date	proc	near
 		and	al,NIBBLE
 		cmp	al,9
 		jbe	day1
-		jmp	bad_date
+		jmp	short bad_date
 day1:		mov	[day],al
 
 		mov	dx,RTC_DAY10
@@ -508,7 +508,7 @@ day1:		mov	[day],al
 		and	al,NIBBLE
 		cmp	al,3
 		jbe	day10
-		jmp	bad_date
+		jmp	short bad_date
 day10:		mul	byte ptr [ten]
 		add	byte ptr [day],al
 ; now al is day from 1 to 31
@@ -518,7 +518,7 @@ day10:		mul	byte ptr [ten]
 		and	al,NIBBLE
 		cmp	al,9
 		jbe	month1
-		jmp	bad_date
+		jmp	short bad_date
 month1:		mov	[month],al
 
 		mov	dx,RTC_MONTH10
@@ -526,7 +526,7 @@ month1:		mov	[month],al
 		and	al,NIBBLE
 		cmp	al,1
 		jbe	month10
-		jmp	bad_date
+		jmp	short bad_date
 month10:	mul	byte ptr [ten]
 		add	byte ptr [month],al
 		mov	al,[month]
@@ -689,8 +689,8 @@ year_to_days	endp
 
 ; this should be at 2CDh offset
 write		proc	near
-		les	bx,dword ptr [request]
-		les	bx,es:[bx + 0Eh]	; request header +0Eh - buffer offset address
+		les	bx,request
+		les	bx,dword ptr es:[bx + 0Eh]	; request header +0Eh - buffer offset address
 		mov	ax,word ptr es:[bx]
 		inc	ax
 		cmp	ax,08EADh
@@ -701,7 +701,7 @@ write		proc	near
 
 l2e6:		mov	ax,08EADh
 		mov	[days_total],ax
-		jmp	l30e
+		jmp	short l30e
 
 l2ef:		mov	[days_total],ax
 		cmp	word ptr [days_total],0
@@ -712,7 +712,7 @@ l2ef:		mov	[days_total],ax
 		nopc
 		mov	byte ptr [day],1
 		nopc
-		jmp	l311
+		jmp	short l311
 
 l30e:		call	calc_day
 
@@ -752,7 +752,7 @@ ENDIF
 		xchg	ah,al
 		out	dx,al
 		les	bx,dword ptr [request]
-		les	bx,es:[bx + 0Eh]		; request header +0Eh - buffer offset address
+		les	bx,dword ptr es:[bx + 0Eh]		; request header +0Eh - buffer offset address
 		xor	ax,ax
 		mov	al,byte ptr es:[bx + 03h]	; request header +03h - status
 		cmp	al,24
@@ -803,8 +803,12 @@ calc_day	proc	near
 		mov	[year],al
 		call	year_to_days
 		cmp	ax,word ptr [days_total]
+IFDEF TWEAK2
+		jc	l3d8
+ELSE
 		jnc	l3d1
 		jmp	l3d8
+ENDIF
 
 l3d1:		dec	byte ptr [year]
 		call	year_to_days
@@ -1114,7 +1118,7 @@ ENDIF
 
 		write_str twenty
 		sub	al,20
-		jmp	l6a3
+		jmp	short l6a3
 
 l6a1:		add	al,80	; start from 1980?
 
@@ -1135,7 +1139,7 @@ ELSE
 ENDIF
 		write_char
 		write_str eol
-		jmp	l731
+		jmp	short l731
 
 IFDEF TWEAK2
 l6d1:		write_str msg101	; write msg101 + anykey
