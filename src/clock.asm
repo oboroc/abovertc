@@ -334,7 +334,7 @@ ENDIF
 		jnz	l0df
 
 IFNDEF TWEAK
-		jmp	rtc_not_found	; unnecessary, can be commented out
+		jmp	near ptr rtc_not_found	; unnecessary, can be commented out
 
 rtc_not_found:
 ENDIF
@@ -371,7 +371,7 @@ IFDEF TWEAK2
 		ja	bad_time		; bad time if CF=0 and ZF=0
 ELSE
 		jbe	sec1
-		jmp	bad_time
+		jmp	near ptr bad_time
 ENDIF
 
 ; set lower digit of second, for example for 47 seconds it will be 7
@@ -390,7 +390,7 @@ IFDEF TWEAK2
 		ja	bad_time
 ELSE
 		jbe	sec10
-		jmp	bad_time
+		jmp	near ptr bad_time
 ENDIF
 ; set higher digit of second, for example for 47 seconds, al is 4
 sec10:		mul	byte ptr [ten]
@@ -408,7 +408,7 @@ IFDEF TWEAK2
 		ja	bad_time
 ELSE
 		jbe	min1
-		jmp	bad_time
+		jmp	near ptr bad_time
 ENDIF
 min1:		mov	[minute],al
 IFDEF TWEAK2
@@ -423,7 +423,7 @@ IFDEF TWEAK2
 		ja	bad_time
 ELSE
 		jbe	min10
-		jmp	bad_time
+		jmp	near ptr bad_time
 ENDIF
 min10:		mul	byte ptr [ten]
 		add	byte ptr [minute],al
@@ -440,7 +440,7 @@ IFDEF TWEAK2
 		ja	bad_time
 ELSE
 		jbe	hour1
-		jmp	bad_time
+		jmp	near ptr bad_time
 ENDIF
 hour1:		mov	[hour],al
 
@@ -456,7 +456,7 @@ IFDEF TWEAK2
 		ja	bad_time
 ELSE
 		jbe	hour10
-		jmp	bad_time
+		jmp	near ptr bad_time
 ENDIF
 hour10:		mul	byte ptr [ten]
 		add	byte ptr [hour],al
@@ -499,16 +499,24 @@ rtc_get_date	proc	near
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,9
+IFDEF TWEAK2
+		ja	bad_date
+ELSE
 		jbe	day1
-		jmp	short bad_date
+		jmp	near ptr bad_date
+ENDIF
 day1:		mov	[day],al
 
 		mov	dx,RTC_DAY10
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,3
+IFDEF TWEAK2
+		ja	bad_date
+ELSE
 		jbe	day10
-		jmp	short bad_date
+		jmp	near ptr bad_date
+ENDIF
 day10:		mul	byte ptr [ten]
 		add	byte ptr [day],al
 ; now al is day from 1 to 31
@@ -517,16 +525,24 @@ day10:		mul	byte ptr [ten]
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,9
+IFDEF TWEAK2
+		ja	bad_date
+ELSE
 		jbe	month1
-		jmp	short bad_date
+		jmp	near ptr bad_date
+ENDIF
 month1:		mov	[month],al
 
 		mov	dx,RTC_MONTH10
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,1
+IFDEF TWEAK2
+		ja	bad_date
+ELSE
 		jbe	month10
-		jmp	short bad_date
+		jmp	near ptr bad_date
+ENDIF
 month10:	mul	byte ptr [ten]
 		add	byte ptr [month],al
 		mov	al,[month]
@@ -697,11 +713,15 @@ write		proc	near
 		jc	l2ef
 		cmp	ax,0AB35h
 		jbe	l2e6
-		jmp	l3ab
+		jmp	near ptr l3ab
 
 l2e6:		mov	ax,08EADh
 		mov	[days_total],ax
+IFDEF TWEAK2
 		jmp	short l30e
+ELSE
+		jmp	near ptr l30e
+ENDIF
 
 l2ef:		mov	[days_total],ax
 		cmp	word ptr [days_total],0
@@ -712,7 +732,11 @@ l2ef:		mov	[days_total],ax
 		nopc
 		mov	byte ptr [day],1
 		nopc
+IFDEF TWEAK2
 		jmp	short l311
+ELSE
+		jmp	near ptr l311
+ENDIF
 
 l30e:		call	calc_day
 
@@ -807,7 +831,7 @@ IFDEF TWEAK2
 		jc	l3d8
 ELSE
 		jnc	l3d1
-		jmp	l3d8
+		jmp	near ptr l3d8
 ENDIF
 
 l3d1:		dec	byte ptr [year]
@@ -838,7 +862,7 @@ not_leap_year3:	mov	bx,offset table_non_leap
 leap_year3:	cmp	ax,word ptr [bx + si + 2]	; check if it is before leap day?
 		jle	before_leap_d
 		add	si,2
-		jmp	leap_year3
+		jmp	short leap_year3
 
 before_leap_d:	mov	ax,word ptr [bx + si]
 		sub	word ptr [days_total],ax
@@ -1118,7 +1142,11 @@ ENDIF
 
 		write_str twenty
 		sub	al,20
+IFDEF TWEAK2
 		jmp	short l6a3
+ELSE
+		jmp	near ptr l6a3
+ENDIF
 
 l6a1:		add	al,80	; start from 1980?
 
@@ -1139,7 +1167,12 @@ ELSE
 ENDIF
 		write_char
 		write_str eol
+IFDEF TWEAK2
 		jmp	short l731
+ELSE
+		jmp	near ptr l731
+ENDIF
+
 
 IFDEF TWEAK2
 l6d1:		write_str msg101	; write msg101 + anykey
@@ -1175,7 +1208,7 @@ ENDIF
 IFDEF TWEAK2
 		ret
 ELSE
-		jmp	l75e
+		jmp	near ptr l75e
 ENDIF
 
 IFDEF TWEAK2
@@ -1245,7 +1278,7 @@ l765:		lodsb
 		mov	dl,al
 		mov	ah,2
 		int	21h
-		jmp	l765
+		jmp	short l765
 ENDIF
 
 l772:		pop	ds
