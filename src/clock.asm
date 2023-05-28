@@ -1,3 +1,4 @@
+	PAGE	 	59,132
 ;
 ; clock.asm - a DOS clock driver for Intel Above Board/PS multi-function card
 ;
@@ -11,6 +12,18 @@
 ;  exe2bin clock.exe clock.sys
 ;
 
+IFDEF TWEAK2
+; moving most of this into a proc saves a lot of bytes
+write_char	MACRO	arg1
+		push	ax
+IFNB <arg1>
+		mov	al,arg1
+ENDIF
+		call	print_char	; print char in al
+		pop	ax
+		ENDM
+
+ELSE
 
 write_char	MACRO	arg1
 		push	ax
@@ -39,6 +52,25 @@ ENDIF
 		pop	ax
 		ENDM
 
+ENDIF		; ENDIFDEF TWEAK2
+
+;
+; Write string to console
+;
+write_str	MACRO	pstr, no_save_si
+			IFB <no_save_si>
+		push	si
+			ENDIF
+IFDEF TWEAK2
+		mov	si,offset pstr
+ELSE
+		lea	si,pstr
+ENDIF
+		call	print_str
+			IFB <no_save_si>
+		pop	si
+			ENDIF
+		ENDM
 
 nopc		MACRO
 IFNDEF TWEAK
@@ -111,10 +143,10 @@ RTC_CONTROL	equ	2CDh
 ; for driver to perform. The address is stores and control is returned to DOS immediately.
 ; DOS then calls the interrupt routine of the driver to execute the operation.
 strategy	proc	far
-		mov	cs:request,bx		; store offset and
-		mov	cs:request + 2,es	; segment of the pointer to request header
+		mov	word ptr cs:[request],bx		; store offset and
+		mov	word ptr cs:[request + 2],es	; segment of the pointer to request header
          	ret
-request	dw	0,0				; pointer to request header provided by DOS
+request		dd	0			; pointer to request header provided by DOS
 ; The request data structure passed by DOS to strategy routine is at least 13 bytes
 ; and tells the driver what it should do. Some operations can use additional data past
 ; 13 bytes. Here is the data structure format:
@@ -144,7 +176,11 @@ interrupt	proc	far
 		mov	ax,cs
 		; set ss to driver code segment
 		mov	ss,ax
+IFDEF TWEAK2
+		mov	sp,offset stack_bottom
+ELSE
 		lea	sp,[stack_bottom]
+ENDIF
 		sti
 		; push flags
 		pushf
@@ -158,18 +194,32 @@ interrupt	proc	far
 		push	bp
 		push	ds
 		push	es
+IFDEF TWEAK2
+		push	cs		; (-2 bytes to use stack)
+		; set ds to driver code segment
+		pop	ds
+ELSE
 		mov	ax,cs
 		; set ds to driver code segment
 		mov	ds,ax
+ENDIF
 		les	bx,dword ptr [request]
 		; read command code from DOS request header
 		mov	al,byte ptr es:[bx + 02h]
 		cmp	al,15
 		jbe	no_bump_al	; jump if al is lower or equal to 15 (0Fh)
 		mov	al,10h		; if al > 15 (0Fh), set it to 16 (10h)
+IFDEF TWEAK2
+no_bump_al:	cbw			; ah = 0 (-1 byte)
+ELSE
 no_bump_al:	xor	ah,ah		; ah = 0
+ENDIF
 		shl	ax,1		; convert routine number to offset: ax = ax * 2
+IFDEF TWEAK2
+		xchg	ax,si		; si = ax (-1 byte)
+ELSE
 		mov	si,ax
+ENDIF
 		call	word ptr [si + jump_table]
 		pop	es
 		pop	ds
@@ -213,7 +263,7 @@ jump_table	dw	init
 read		proc	near
 		les	bx,dword ptr [request]
 		call	rtc_get_time
-		les	bx,es:[bx + 0Eh]		; request header +0Eh - buffer offset address
+		les	bx,dword ptr es:[bx + 0Eh]		; request header +0Eh - buffer offset address
 		mov	al,[second]
 		mov	byte ptr es:[bx + 05h],al	; request header +05h - reserved?
 		mov	al,[minute]
@@ -228,7 +278,7 @@ read		proc	near
 		jnz	l0cc
 		call	set_days_total
 l0cc:		les	bx,dword ptr [request]
-		les	bx,es:[bx + 0Eh]		; request header +0Eh - buffer offset address
+		les	bx,dword ptr es:[bx + 0Eh]		; request header +0Eh - buffer offset address
 		mov	dx,word ptr [days_total]
 		dec	dx
 		mov	word ptr es:[bx],dx
@@ -237,8 +287,15 @@ read		endp
 
 
 ; this should be at 0DDh offset
+; clobbers bx
 rtc_detect	proc	near
+
+IFDEF TWEAK2
+		mov	bx,1		; save bytes by using a countdown loop
+ELSE
 		xor	bl,bl
+ENDIF
+
 
 l0df:
 IFDEF TWEAK
@@ -256,22 +313,28 @@ ENDIF
 		nop
 
 		in	al,dx
-		or	al,1
+		or	al,1		; set HOLD flag
 		out	dx,al
 
+IFNDEF TWEAK2
 		inc	bl
+ENDIF
 		mov	cx,100
 
 l0f2:		in	al,dx
-		test	al,2
+		test	al,2		; BUSY flag?
 		jz	rtc_found
 		loop	l0f2
 
+IFDEF TWEAK2
+		dec	bx
+ELSE
 		cmp	bl,2
+ENDIF
 		jnz	l0df
 
 IFNDEF TWEAK
-		jmp	rtc_not_found	; unnecessary, can be commented out
+		jmp	near ptr rtc_not_found	; unnecessary, can be commented out
 
 rtc_not_found:
 ENDIF
@@ -300,58 +363,101 @@ rtc_init	endp
 ; this should be at 117h offset
 rtc_get_time	proc	near
 		call	rtc_detect
-		mov	dx,RTC_SEC1
+		mov	dx,RTC_SEC1		; 2C0h
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,9
+IFDEF TWEAK2
+		ja	bad_time		; bad time if CF=0 and ZF=0
+ELSE
 		jbe	sec1
-		jmp	bad_time
+		jmp	near ptr bad_time
+ENDIF
+
 ; set lower digit of second, for example for 47 seconds it will be 7
 sec1:		mov	[second],al
 
-		mov	dx,RTC_SEC10
+IFDEF TWEAK2
+; these port numbers are sequential, so -2 bytes to just inc instead
+		inc	dx			; 2C1h RTC_SEC10
+ELSE
+		mov	dx,RTC_SEC10		; 2C1h
+ENDIF
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,5
+IFDEF TWEAK2
+		ja	bad_time
+ELSE
 		jbe	sec10
-		jmp	bad_time
+		jmp	near ptr bad_time
+ENDIF
 ; set higher digit of second, for example for 47 seconds, al is 4
 sec10:		mul	byte ptr [ten]
 		add	byte ptr [second],al
 ; now al is seconds from 0 to 59
-
-		mov	dx,RTC_MIN1
+IFDEF TWEAK2
+		inc	dx			; 2C2h RTC_MIN1
+ELSE
+		mov	dx,RTC_MIN1		; 2C2h
+ENDIF
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,9
+IFDEF TWEAK2
+		ja	bad_time
+ELSE
 		jbe	min1
-		jmp	bad_time
+		jmp	near ptr bad_time
+ENDIF
 min1:		mov	[minute],al
-
-		mov	dx,RTC_MIN10
+IFDEF TWEAK2
+		inc	dx			; 2C3h RTC_MIN10
+ELSE
+		mov	dx,RTC_MIN10		; 2C3h
+ENDIF
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,5
+IFDEF TWEAK2
+		ja	bad_time
+ELSE
 		jbe	min10
-		jmp	bad_time
+		jmp	near ptr bad_time
+ENDIF
 min10:		mul	byte ptr [ten]
 		add	byte ptr [minute],al
 ; now al is minutes from 0 to 59
-
-		mov	dx,RTC_HOUR1
+IFDEF TWEAK2
+		inc	dx			; 2C4h RTC_HOUR1
+ELSE
+		mov	dx,RTC_HOUR1		; 2C4h
+ENDIF
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,9
+IFDEF TWEAK2
+		ja	bad_time
+ELSE
 		jbe	hour1
-		jmp	bad_time
+		jmp	near ptr bad_time
+ENDIF
 hour1:		mov	[hour],al
 
-		mov	dx,RTC_HOUR10
+IFDEF TWEAK2
+		inc	dx			; 2C5h RTC_HOUR10
+ELSE
+		mov	dx,RTC_HOUR10		; 2C5h
+ENDIF
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,2
+IFDEF TWEAK2
+		ja	bad_time
+ELSE
 		jbe	hour10
-		jmp	bad_time
+		jmp	near ptr bad_time
+ENDIF
 hour10:		mul	byte ptr [ten]
 		add	byte ptr [hour],al
 		mov	ah,byte ptr [hour]
@@ -375,8 +481,12 @@ bad_time:	call	rtc_init
 		les	bx,dword ptr [request]
 		mov	word ptr es:[bx + 03h],810Ch	; request header +03h - status
 		xor	ax,ax
+IFDEF TWEAK2
+		mov	word ptr [second],ax		; -1 byte
+ELSE
 		mov	[second],al
 		mov	[minute],al
+ENDIF
 		mov	[hour],al
 		ret
 rtc_get_time	endp
@@ -389,16 +499,24 @@ rtc_get_date	proc	near
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,9
+IFDEF TWEAK2
+		ja	bad_date
+ELSE
 		jbe	day1
-		jmp	bad_date
+		jmp	near ptr bad_date
+ENDIF
 day1:		mov	[day],al
 
 		mov	dx,RTC_DAY10
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,3
+IFDEF TWEAK2
+		ja	bad_date
+ELSE
 		jbe	day10
-		jmp	bad_date
+		jmp	near ptr bad_date
+ENDIF
 day10:		mul	byte ptr [ten]
 		add	byte ptr [day],al
 ; now al is day from 1 to 31
@@ -407,16 +525,24 @@ day10:		mul	byte ptr [ten]
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,9
+IFDEF TWEAK2
+		ja	bad_date
+ELSE
 		jbe	month1
-		jmp	bad_date
+		jmp	near ptr bad_date
+ENDIF
 month1:		mov	[month],al
 
 		mov	dx,RTC_MONTH10
 		in	al,dx
 		and	al,NIBBLE
 		cmp	al,1
+IFDEF TWEAK2
+		ja	bad_date
+ELSE
 		jbe	month10
-		jmp	bad_date
+		jmp	near ptr bad_date
+ENDIF
 month10:	mul	byte ptr [ten]
 		add	byte ptr [month],al
 		mov	al,[month]
@@ -489,10 +615,20 @@ pm_to_days	proc	near
 		nopc
 
 not_leap_year:	mov	bx,offset table_non_leap
-lookup:		xor	ax,ax
+lookup:
+IFDEF TWEAK2
+		mov	al,month
+		cbw
+ELSE
+		xor	ax,ax
 		mov	al,[month]
+ENDIF
 		shl	ax,1	; ax = ax * 2
+IFDEF TWEAK2
+		xchg	ax,si
+ELSE
 		mov	si,ax	; an offset to word?
+ENDIF
 		mov	ax,word ptr [bx + si]
 		ret
 pm_to_days	endp
@@ -501,8 +637,13 @@ pm_to_days	endp
 ; this should be at 28Dh offset
 month_to_days	proc	near
 		push	ax
+IFDEF TWEAK2
+		mov	al,month
+		cbw
+ELSE
 		xor	ax,ax
 		mov	al,[month]
+ENDIF
 		mov	bx,offset table_days_in_month	; it should be 4B4h
 ; al = days in current month, no leap year correction for february
 		xlat
@@ -523,7 +664,11 @@ month_to_days	proc	near
 		jnz	not_leap_year2
 
 ; add one day if it is february and it's a leap year: 28 + 1 = 29
+IFDEF TWEAK2
+		inc	ax
+ELSE
 		inc	al
+ENDIF
 
 not_leap_year2:	mov	[days_in_month],ax
 		pop	ax
@@ -533,12 +678,21 @@ month_to_days	endp
 
 ; this should be at 2ADh offset
 year_to_days	proc	near
+IFDEF TWEAK2
+		mov	al,[year]
+		cbw
+ELSE
 		xor	ax,ax
 		mov	al,[year]
+ENDIF
 		mul	word ptr [days_per_year]
 		xor	cx,cx
+IFDEF TWEAK2
+		add	cl,[year]
+ELSE
 		mov	cl,[year]
 		cmp	byte ptr [year],0
+ENDIF
 		jz	year0
 		dec	cl
 		shr	cx,1
@@ -551,19 +705,23 @@ year_to_days	endp
 
 ; this should be at 2CDh offset
 write		proc	near
-		les	bx,dword ptr [request]
-		les	bx,es:[bx + 0Eh]	; request header +0Eh - buffer offset address
+		les	bx,request
+		les	bx,dword ptr es:[bx + 0Eh]	; request header +0Eh - buffer offset address
 		mov	ax,word ptr es:[bx]
 		inc	ax
 		cmp	ax,08EADh
 		jc	l2ef
 		cmp	ax,0AB35h
 		jbe	l2e6
-		jmp	l3ab
+		jmp	near ptr l3ab
 
 l2e6:		mov	ax,08EADh
 		mov	[days_total],ax
-		jmp	l30e
+IFDEF TWEAK2
+		jmp	short l30e
+ELSE
+		jmp	near ptr l30e
+ENDIF
 
 l2ef:		mov	[days_total],ax
 		cmp	word ptr [days_total],0
@@ -574,13 +732,22 @@ l2ef:		mov	[days_total],ax
 		nopc
 		mov	byte ptr [day],1
 		nopc
-		jmp	l311
+IFDEF TWEAK2
+		jmp	short l311
+ELSE
+		jmp	near ptr l311
+ENDIF
 
 l30e:		call	calc_day
 
 l311:		call	rtc_detect
+IFDEF TWEAK2
+		mov	al,[day]
+		cbw
+ELSE
 		xor	ax,ax
 		mov	al,[day]
+ENDIF
 		div	byte ptr [ten]
 		mov	dx,RTC_DAY10
 		out	dx,al
@@ -595,8 +762,13 @@ l311:		call	rtc_detect
 		mov	dx,RTC_MONTH1
 		xchg	ah,al
 		out	dx,al
+IFDEF TWEAK2
+		mov	al,[year]
+		cbw
+ELSE
 		xor	ax,ax
 		mov	al,[year]
+ENDIF
 		div	byte ptr [ten]
 		mov	dx,RTC_YEAR10
 		out	dx,al
@@ -604,7 +776,7 @@ l311:		call	rtc_detect
 		xchg	ah,al
 		out	dx,al
 		les	bx,dword ptr [request]
-		les	bx,es:[bx + 0Eh]		; request header +0Eh - buffer offset address
+		les	bx,dword ptr es:[bx + 0Eh]		; request header +0Eh - buffer offset address
 		xor	ax,ax
 		mov	al,byte ptr es:[bx + 03h]	; request header +03h - status
 		cmp	al,24
@@ -655,8 +827,12 @@ calc_day	proc	near
 		mov	[year],al
 		call	year_to_days
 		cmp	ax,word ptr [days_total]
+IFDEF TWEAK2
+		jc	l3d8
+ELSE
 		jnc	l3d1
-		jmp	l3d8
+		jmp	near ptr l3d8
+ENDIF
 
 l3d1:		dec	byte ptr [year]
 		call	year_to_days
@@ -686,7 +862,7 @@ not_leap_year3:	mov	bx,offset table_non_leap
 leap_year3:	cmp	ax,word ptr [bx + si + 2]	; check if it is before leap day?
 		jle	before_leap_d
 		add	si,2
-		jmp	leap_year3
+		jmp	short leap_year3
 
 before_leap_d:	mov	ax,word ptr [bx + si]
 		sub	word ptr [days_total],ax
@@ -802,10 +978,7 @@ init		proc	near	; initialization routine
 		mov	dx,2CEh
 		mov	al,3
 		out	dx,al
-		push	si
-		lea	si,[banner]
-		call	print_str
-		pop	si
+		write_str banner
 		call	rtc_detect
 		call	rtc_init
 		cmp	byte ptr [rtc_status],RTC_OK
@@ -837,23 +1010,33 @@ l54d:		loop	l54d	; delay loop? skip something?
 
 l561:		call	rtc_get_time
 		les	bx,dword ptr [request]
+IFDEF TWEAK2
+; use indexed addressing instead of direct (saves 2+ bytes per use)
+		mov	di,offset char_buf
+_char_buf	equ	byte ptr[di]
+ENDIF
 		cmp	word ptr es:[bx + 03h],100h	; request header +03h - status
 		jz	l573
 		jmp	l719
 
-l573:		push	si
-		lea	si,[cur_time]
-		call	print_str
-		pop	si
+l573:		write_str cur_time
 		xor	ax,ax
 		mov	al,[hour]
 		div	byte ptr [ten]
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
 		xchg	ah,al
-		add	al,byte ptr [device_name]	; mmm, wtf?
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]	; mmm, wtf?
+ENDIF
 
 		write_char
 
@@ -862,12 +1045,20 @@ l573:		push	si
 		xor	ax,ax
 		mov	al,[minute]
 		div	byte ptr [ten]
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
 		xchg	ah,al
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
@@ -876,12 +1067,20 @@ l573:		push	si
 		xor	ax,ax
 		mov	al,[second]
 		div	byte ptr [ten]	; divide by 10 to convert BCD to normal byte?
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
 		xchg	ah,al
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
@@ -891,19 +1090,24 @@ l573:		push	si
 		jz	l61b
 		jmp	l719
 
-l61b:		push	si
-		lea	si,[cur_date]
-		call	print_str
-		pop	si
+l61b:		write_str cur_date
 		xor	ax,ax
 		mov	al,month
 		div	byte ptr [ten]
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
 		xchg	ah,al
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
@@ -912,12 +1116,20 @@ l61b:		push	si
 		xor	ax,ax
 		mov	al,day
 		div	byte ptr [ten]
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
 		xchg	ah,al
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
@@ -927,44 +1139,53 @@ l61b:		push	si
 		mov	al,[year]
 		cmp	al,20	; could it be? y2k
 		jc	l6a1
-		push	si
-		lea	si,[twenty]
-		call	print_str
-		pop	si
+
+		write_str twenty
 		sub	al,20
-		jmp	l6a3
+IFDEF TWEAK2
+		jmp	short l6a3
+ELSE
+		jmp	near ptr l6a3
+ENDIF
 
 l6a1:		add	al,80	; start from 1980?
 
 l6a3:		div	byte ptr [ten]
-		add	al,byte ptr [device_name]
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 
 		write_char
 
 		xchg	ah,al
-		add	al,byte ptr [device_name]
-
+IFDEF TWEAK2
+		add	al,_char_buf
+ELSE
+		add	al,byte ptr [char_buf]
+ENDIF
 		write_char
+		write_str eol
+IFDEF TWEAK2
+		jmp	short l731
+ELSE
+		jmp	near ptr l731
+ENDIF
 
-		push	si
-		lea	si,[eol]
-		call	print_str
-		pop	si
-		jmp	l731
 
-l6d1:		push	si
-		lea	si,[msg101]
-		call	print_str
-		pop	si
-		push	si
-		lea	si,[anykey]
-		call	print_str
-		pop	si
+IFDEF TWEAK2
+l6d1:		write_str msg101	; write msg101 + anykey
+		mov	ax,0C07h
+ELSE
+l6d1:		write_str msg101
+		write_str anykey
 		mov	al,07h
 		mov	ah,0Ch
+ENDIF
 		int	21h	; int 21h, ah = 0Ch, al = 07h - flush buffer and read from stdin
 		call	rtc_init
-		les	bx,dword ptr [request]
+		les	bx,request
 		; are we ditching init part here? to save some memory?
 		mov	es:[bx + 0Eh],offset init		; +0Eh - buffer offset address
 		mov	ax,cs
@@ -975,23 +1196,36 @@ IFNDEF TWEAK
 ENDIF
 		mov	es,ax
 		xor	al,al
+IFDEF TWEAK2
+		mov	di,offset driver_name
+ELSE
 		lea	di,[driver_name]
+ENDIF
 		mov	cx,8
 		stosb	;es:di
 		; change character device attributes to 1010000000000000b:
 		mov	word ptr [drv_attr],CHAR_DRV + OUTPUT_UNTIL
-		jmp	l75e
+IFDEF TWEAK2
+		ret
+ELSE
+		jmp	near ptr l75e
+ENDIF
 
-l719:		push	si
-		lea	si,[msg100]
-		call	print_str
+IFDEF TWEAK2
+l719:		push	si		; TODO: is SI necessary to preserve at all?
+		write_str msg100, 1
+		write_str anykey, 1
 		pop	si
-		push	si
-		lea	si,[anykey]
-		call	print_str
-		pop	si
+ELSE
+l719:		write_str msg100
+		write_str anykey
+ENDIF
+IFDEF TWEAK2
+		mov	ax,0C07h
+ELSE
 		mov	al,07h
 		mov	ah,0Ch
+ENDIF
 		int	21h	; int 21h, ah = 0Ch, al = 07h - flush buffer and read from stdin
 
 l731:		les	bx,dword ptr [request]
@@ -1009,8 +1243,13 @@ ENDIF
 		mov	ds,ax	; unnecessary?
 
 		; set device name to 0CLOCK, 1CLOCK etc.
-		lea	si,[device_name + 1]
+IFDEF TWEAK2
+		mov	si,offset device_name
+		mov	di,offset driver_name
+ELSE
+		lea	si,[device_name]
 		lea	di,[driver_name]
+ENDIF
 		mov	cx,8
 		rep movsb
 
@@ -1021,32 +1260,63 @@ init		endp
 print_str	proc	near
 		push	ax
 		push	dx
-		push	si
+IFNDEF TWEAK2
+		push	si	; unnecessary with TWEAK2
+ENDIF
 		push	ds
 		push	cs
 		pop	ds	; ds = cs
 
+IFDEF TWEAK2
+l765:		mov	dx,si	; this function appears to do exactly
+		mov	ah,9	;  what INT 21, AH=9 does...
+		int	21h
+ELSE
 l765:		lodsb
 		cmp	al,'$'
 		jz	l772
 		mov	dl,al
 		mov	ah,2
 		int	21h
-		jmp	l765
+		jmp	short l765
+ENDIF
 
 l772:		pop	ds
+IFNDEF TWEAK2
 		pop	si
+ENDIF
 		pop	dx
 		pop	ax
 		ret
 print_str	endp
 
+IFDEF TWEAK2
+;
+; print char in al
+;
+print_char	proc	near
+		push	dx
+		xchg	ax,dx		; dl = al
+		mov	ah,2		; int 21h, ah = 2 - write character
+		int	21h		;  in dl to standard output
+		pop	dx
+		ret
+print_char	endp
+ENDIF
 
-device_name	db	"0CLOCK$"
+char_buf	db	"0"		; temp buffer for ASCII char output
+device_name	db	"CLOCK$"	; this is really device_name
 		dw	0
 
 banner		db	13,10
 		db	10,10,"Clock Device Driver       Ver 1.2"
+IFDEF TWEAK2
+		db	"b"
+ELSE
+	IFDEF TWEAK
+		db	"a"
+	ENDIF
+ENDIF
 		db	13,10,"Copyright 1985  Intel Corporation","$"
 
 msg100		db	13,10,10,10,"Clock Msg 100"
@@ -1058,7 +1328,10 @@ msg100		db	13,10,10,10,"Clock Msg 100"
 msg101		db	13,10,10,10,"Clock Msg 101"
 		db	13,10,"   The clock hardware isn't working. There are many possible causes."
 		db	13,10,10,"   The clock software has not been installed."
-		db	13,10,"   See Appendix C in the Intel manual.",13,10,"$"
+		db	13,10,"   See Appendix C in the Intel manual.",13,10
+IFNDEF TWEAK2
+		db	"$"
+ENDIF
 
 anykey		db	13,10,10,"   Press any key to continue",13,10,"$"
 
